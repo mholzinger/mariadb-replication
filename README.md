@@ -10,7 +10,7 @@ This playbook establishes:
 - Two 1GB Centos 8 nodes
 - Installs the latest versions of MariaDB and Keepalived for cluster orchestration.
 - fqdn = primary / ip = 192.168.40.2
-- fqdn = secondary / ip = 192.168.40.2
+- fqdn = secondary / ip = 192.168.40.3
 - Innodb Storage engine / Binary logging
 - Full replication from primary to secondary node
 
