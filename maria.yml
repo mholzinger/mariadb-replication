@@ -1,0 +1,57 @@
+- name: Install MariaDB to Centos
+  hosts: primary:secondary
+  gather_facts: true
+  become: true
+  vars:
+    mysql_root_password: "ezcluster4u"
+  tasks:
+    - name: install keepalived
+      yum:
+        name:
+          - keepalived
+        state: latest
+    - name: install mariadb
+      yum:
+        name:
+          - mariadb-server
+          - python3-PyMySQL
+        state: latest
+
+    - name: "Setup Mirroring on primary MariaDB node"
+      copy: src={{ item.src }} dest={{ item.dest }}
+      with_items:
+        - { src: 'primary-mariadb-server.cnf', dest: '/etc/my.cnf.d/mariadb-server.cnf' }
+        - { src: 'primary-replication.sql', dest: '/home/vagrant/enable-replication.sql' }
+      when: ansible_hostname == 'primary'
+
+    - name: "Copy backup config to Secondary node"
+      copy: src={{ item.src }} dest={{ item.dest }}
+      with_items:
+        - { src: 'secondary-mariadb-server.cnf', dest: '/etc/my.cnf.d/mariadb-server.cnf' }
+        - { src: 'secondary-replication.sql', dest: '/home/vagrant/enable-replication.sql' }
+      when: ansible_hostname == 'secondary'
+
+    - name: start mariadb
+      service:
+        name: mariadb
+        enabled: true
+        state: started
+    - name: Set the mysql_root_password
+      mysql_user:
+        login_user: root
+        login_password: "{{ mysql_root_password }}"
+        user: root
+        check_implicit_admin: true
+        password: "{{ mysql_root_password }}"
+        host: localhost
+    - name: remove remote root
+      mysql_user:
+        check_implicit_admin: true
+        login_user: root
+        login_password: "{{ mysql_root_password }}"
+        user: root
+        host: "{{ ansible_fqdn }}"
+        state: absent
+
+    - name: Run SQL commands to finish replication setup
+      shell: mysql -u root --password={{ mysql_root_password }} < /home/vagrant/enable-replication.sql
